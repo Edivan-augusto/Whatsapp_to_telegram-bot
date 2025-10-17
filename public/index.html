@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WA TG Assistant</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Icon library (Lucide) -->
+  <script defer src="https://unpkg.com/lucide@0.454.0/dist/umd/lucide.min.js"></script>
+  <script defer src="/app.js"></script>
+  <meta name="color-scheme" content="light dark" />
+</head>
+<body>
+  <header class="topbar compact">
+    <div class="brand">WA TG</div>
+    <div class="top-actions">
+      <div class="status-pill" id="waStatus">Carregando...</div>
+      <button id="btnSettings" class="icon-btn" title="Configurações" aria-label="Configurações">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9.94 3.06-1.66-.96c.04-.35.07-.71.07-1.09s-.03-.74-.07-1.1l1.66-.95a.5.5 0 0 0 .2-.67l-1.5-2.6a.5.5 0 0 0-.62-.21l-1.96.8c-.57-.46-1.2-.84-1.9-1.12l-.3-2.1A.5.5 0 0 0 13 1h-3a.5.5 0 0 0-.5.42l-.3 2.1c-.7.28-1.33.66-1.9 1.12l-1.96-.8a.5.5 0 0 0-.62.21l-1.5 2.6a.5.5 0 0 0 .2.67l1.66.95c-.04.36-.07.72-.07 1.1s.03.74.07 1.1l-1.66.95a.5.5 0 0 0-.2.67l1.5-2.6a.5.5 0 0 0 .62.21l1.96-.8c.57.46 1.2.84 1.9 1.12l.3 2.1a.5.5 0 0 0 .5.42h3a.5.5 0 0 0 .5-.42l.3-2.1c.7-.28 1.33-.66 1.9-1.12l1.96.8a.5.5 0 0 0 .62-.21l1.5-2.6a.5.5 0 0 0-.2-.67Z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="container narrow">
+    <section class="card centered">
+      <div class="qrbox small">
+        <div id="qrSpinner" class="spinner" aria-hidden="true"></div>
+        <img id="qrImg" alt="QR Code" />
+        <div id="qrHint" class="muted">Gerando QR...</div>
+      </div>
+      <div class="actions center">
+        <button id="btnForceLogout" class="btn primary">Gerar QR Code</button>
+      </div>
+    </section>
+
+    <section class="card" id="templateSection" aria-labelledby="tplTitle">
+      <label id="tplTitle" for="msgTemplate" style="display:block; margin-bottom:8px; font-weight:600;">Mensagem Enviada</label>
+      <div class="template-row">
+        <textarea id="msgTemplate" class="input" rows="6" placeholder="Use variáveis como *ENTRADA*, *GRUPO*, *ID*, *HORA*, *DATA*, *QUANDO*"></textarea>
+        <button id="btnSaveTemplate" class="btn" type="button" style="white-space:nowrap; align-self:flex-start;">Salvar Texto</button>
+      </div>
+      <div class="muted" style="margin-top:6px; font-size:.85rem;">Dica: qualquer *Var* será substituída pela variável (ex.: *ENTRADA*, *GRUPO*, *ID*, *HORA*, *DATA*, *QUANDO*).</div>
+    </section>
+  </main>
+
+  <!-- Settings Modal (novo layout) -->
+  <div id="settingsModal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="cfgTitle">
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__sheet" role="document">
+      <div class="modal__card">
+        <header class="card__header">
+          <h2 class="card__title" id="cfgTitle">Configurações</h2>
+          <button class="icon-btn" id="btnClose" aria-label="Fechar">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </header>
+        <div class="card__body">
+          <form id="settingsForm" class="form-grid">
+
+            <!-- Controle de envio automático -->
+            <div class="fieldset">
+              <div class="field-group" id="sendingControlGroup">
+                <span class="label">Delay de Envio Automático</span>
+                <div class="input-value-wrapper">
+                  <input class="input" id="ui_controle_envio" name="controle_envio" type="number" inputmode="numeric" min="1" step="1" value="5">
+                  <span style="color:var(--text-secondary); font-size: 0.9rem;">min</span>
+                </div>
+                <div class="separator"></div>
+                <label class="switch" aria-label="Ativar/desativar envios automáticos">
+                  <input type="checkbox" id="enable_sending_toggle" checked>
+                  <div class="track"><div class="thumb"></div></div>
+                </label>
+              </div>
+            </div>
+
+            <div class="responsive-grid">
+              <div class="fieldset span-8">
+                <label for="ui_grupo_nome">Grupo Alvo <span class="help-square" title="O nome do grupo deve ser identico ao original ate em maisculas , minusculas e acentos"></span></label>
+                <div class="input-wrapper">
+                  <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 14.252V16.341L12 17.5L10 16.341V14.252L5.66 11.063L12 3L18.34 11.063L14 14.252ZM12 19.5L14 20.659V22.748L12 24L10 22.748V20.659L12 19.5ZM12 1L22 9.063V18.937L12 23L2 18.937V9.063L12 1Z"></path></svg></span>
+                  <input class="input has-icon" id="ui_grupo_nome" name="grupo_alvo_nome" type="text" placeholder="Ex: Vendas - Setor Azul">
+                </div>
+              </div>
+              <div class="fieldset span-6">
+                <label for="ui_token">Token do Bot</label>
+                <div class="input-wrapper">
+                  <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8H20C20.5523 8 21 8.44772 21 9V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V9C3 8.44772 3.44772 8 4 8H6V7C6 3.68629 8.68629 1 12 1C15.3137 1 18 3.68629 18 7V8ZM16 8V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V8H16Z"></path></svg></span>
+                  <input class="input has-icon has-toggle" id="ui_token" name="token_bot" type="password" autocomplete="new-password" placeholder="•••••••••••••••••••••••••">
+                  <button type="button" class="icon-btn password-toggle-btn" id="tokenToggle" aria-label="Mostrar token">
+                    <!-- Eye (open) visible only when type="text" -->
+                    <svg id="tokenIconShow" class="is-hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <!-- Eye off (closed) visible when type="password" -->
+                    <svg id="tokenIconHide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a18.41 18.41 0 0 1 5.06-5.94"></path>
+                      <path d="M1 1l22 22"></path>
+                      <path d="M9.53 9.53A3 3 0 1 0 14.47 14.5"></path>
+                      <path d="M14.12 7.88A10.94 10.94 0 0 0 12 4C5 4 1 12 1 12a18.41 18.41 0 0 0 5.06 5.94"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <footer class="card__actions">
+          <div class="danger-zone">
+            <button class="btn btn-danger" id="btnClear" type="button">Apagar Sessão do WhatsApp</button>
+            <p>Esta ação é irreversível e desconectará sua conta.</p>
+          </div>
+          <div class="main-actions">
+            <button class="btn btn-muted" id="btnCancel" type="button">Cancelar</button>
+            <button class="btn" id="btnSave" type="submit" form="settingsForm">Salvar Alterações</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+</body>
+</html>

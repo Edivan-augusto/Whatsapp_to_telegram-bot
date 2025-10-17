@@ -1,0 +1,35 @@
+*** Begin Patch
+*** Update File: index.js
+@@
+ function isTargetGroup(chat) {
+   if (!chat?.isGroup) return false;
+   if (WAPP_GROUP_ID && (chat.id?._serialized === WAPP_GROUP_ID || chat.id?.user === WAPP_GROUP_ID)) return true;
+   if (WAPP_GROUP_NAME) {
+     const key = normalizeName(WAPP_GROUP_NAME);
+     const name = normalizeName(chat.name);
+     if (key && (name === key || name.includes(key))) return true;
+   }
+   return false;
+ }
++
++// Bind global por nome (acessível fora do bloco WhatsApp)
++async function bindGroupByNameGlobal(name) {
++  try {
++    if (!WA_READY || !wa) return null;
++    const key = normalizeName(name);
++    if (!key) return null;
++    let candidate = null;
++    try {
++      const chats = await wa.getChats();
++      candidate = (chats || []).find(c => c.isGroup && normalizeName(c.name).includes(key));
++    } catch {}
++    if (candidate) {
++      WAPP_GROUP_ID = candidate.id?._serialized;
++      saveBind();
++      try { if (TELEGRAM_CHAT_ID) await tgReply(TELEGRAM_CHAT_ID, `Grupo vinculado: ${candidate.name}\nid=${WAPP_GROUP_ID}`); } catch {}
++      return WAPP_GROUP_ID;
++    }
++    return null;
++  } catch { return null; }
++}
+*** End Patch
