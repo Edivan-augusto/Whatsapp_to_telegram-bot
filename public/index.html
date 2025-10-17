@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WA TG Assistant</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script defer src="/app.js"></script>
+  <meta name="color-scheme" content="light dark" />
+</head>
+<body>
+  <header class="topbar compact">
+    <div class="brand">WA TG</div>
+    <div class="top-actions">
+      <div class="status-pill" id="waStatus">Carregando...</div>
+      <button id="btnSettings" class="icon-btn" title="Configurações" aria-label="Configurações">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm9.94 3.06-1.66-.96c.04-.35.07-.71.07-1.09s-.03-.74-.07-1.1l1.66-.95a.5.5 0 0 0 .2-.67l-1.5-2.6a.5.5 0 0 0-.62-.21l-1.96.8c-.57-.46-1.2-.84-1.9-1.12l-.3-2.1A.5.5 0 0 0 13 1h-3a.5.5 0 0 0-.5.42l-.3 2.1c-.7.28-1.33.66-1.9 1.12l-1.96-.8a.5.5 0 0 0-.62.21l-1.5 2.6a.5.5 0 0 0 .2.67l1.66.95c-.04.36-.07.72-.07 1.1s.03.74.07 1.1l-1.66.95a.5.5 0 0 0-.2.67l1.5-2.6a.5.5 0 0 0 .62.21l1.96-.8c.57.46 1.2.84 1.9 1.12l.3 2.1a.5.5 0 0 0 .5.42h3a.5.5 0 0 0 .5-.42l.3-2.1c.7-.28 1.33-.66 1.9-1.12l1.96.8a.5.5 0 0 0 .62-.21l1.5-2.6a.5.5 0 0 0-.2-.67ZM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="container narrow">
+    <section class="card centered">
+      <div class="qrbox small">
+        <div id="qrSpinner" class="spinner" aria-hidden="true"></div>
+        <img id="qrImg" alt="QR Code" />
+        <div id="qrHint" class="muted">Gerando QR...</div>
+      </div>
+      <div class="actions center">
+        <button id="btnForceLogout" class="btn primary">Gerar QR Code</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header">
+        <h3 id="settingsTitle">Configurações</h3>
+        <button class="icon-btn" id="btnCloseSettings" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body" id="settingsBody">
+        <form id="settingsForm">
+          <div class="stg-layout">
+            <!-- Sidebar -->
+            <aside class="stg-nav" aria-label="Navegação de configurações">
+              <h5>Seções</h5>
+              <a href="#sec-telegram"><span class="ico">📨</span> Telegram</a>
+              <a href="#sec-whatsapp"><span class="ico">💬</span> WhatsApp</a>
+              <a href="#sec-interface"><span class="ico">🖥️</span> Interface</a>
+              <a href="#sec-acoes" class="danger"><span class="ico">⚠️</span> Ações</a>
+            </aside>
+
+            <!-- Content -->
+            <div class="stg-content">
+              <div class="stg-grid" id="settingsGrid">
+                <!-- Telegram -->
+                <section class="stg-card stg-col-4" data-section="telegram" id="sec-telegram">
+                  <h4><span class="sec-ico" aria-hidden="true">📨</span> Telegram</h4>
+
+                  <label class="stg-field">
+                    <span>Token Bot (Telegram)</span>
+                    <div class="stg-pillrow">
+                      <input type="password" id="ui_token" autocomplete="off" placeholder="Seu token" />
+                      <button type="button" id="btnToggleToken" class="icon-btn stg-input-ico" title="Mostrar/ocultar token" aria-label="Mostrar/ocultar token" aria-pressed="false">👁️</button>
+                    </div>
+                    <small class="stg-helper">Obrigatório se “Chat destino” estiver preenchido.</small>
+                    <div class="stg-error" id="err_token" hidden>Informe o token do bot.</div>
+                  </label>
+
+                  <label class="stg-field">
+                    <span>Chat destino</span>
+                    <input type="text" id="ui_chat_id" autocomplete="off" placeholder="123456789" class="stg-input" />
+                  </label>
+                </section>
+
+                <!-- WhatsApp -->
+                <section class="stg-card stg-col-4" data-section="whatsapp" id="sec-whatsapp">
+                  <h4><span class="sec-ico" aria-hidden="true">💬</span> WhatsApp</h4>
+
+                  <label class="stg-field">
+                    <span>Grupo alvo ID</span>
+                    <input type="text" id="ui_wa_id" autocomplete="off" placeholder="1203xxx@g.us" class="stg-input" />
+                  </label>
+
+                  <label class="stg-field">
+                    <span>Grupo alvo nome</span>
+                    <input type="text" id="ui_wa_name" autocomplete="off" placeholder="Nome do Grupo" class="stg-input" />
+                  </label>
+
+                  <label class="stg-field" hidden>
+                    <span>Sessão do WhatsApp</span>
+                    <select id="ui_session" class="stg-input"></select>
+                    <small class="stg-helper">Padrão: default</small>
+                  </label>
+                </section>
+
+                <!-- Interface -->
+                <section class="stg-card stg-col-4" data-section="interface" id="sec-interface">
+                  <h4><span class="sec-ico" aria-hidden="true">🖥️</span> Interface</h4>
+
+                  <label class="stg-field">
+                    <span>Porta da Interface</span>
+                    <input type="number" id="ui_port" placeholder="43117" class="stg-input" />
+                  </label>
+
+                  <label class="stg-field">
+                    <span>Controle de envio</span>
+                    <div class="stg-pillrow">
+                      <input type="number" id="ui_send_offset" min="0" max="60" step="1" placeholder="0" />
+                      <span class="stg-input-ico" aria-hidden="true" style="position:static; inset:auto; transform:none; padding:0 10px;">minutos antes</span>
+                    </div>
+                    <small class="stg-helper">0 = sem controle</small>
+                  </label>
+                </section>
+
+                <!-- Ações perigosas -->
+                <section class="stg-card stg-danger stg-col-12" data-section="acoes" id="sec-acoes">
+                  <h4><span class="sec-ico" aria-hidden="true">⚠️</span> Ações</h4>
+                  <button type="button" class="btn danger sm" id="btnClearWa">Apagar sessão do WhatsApp</button>
+                  <small class="muted">Remove login salvo e volta a exibir QR.</small>
+                </section>
+              </div>
+
+              <!-- Preview -->
+              <label class="row-inline preview-toggle" style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+                <input type="checkbox" id="previewSwitch" />
+                <span>Visualizar conteúdo antes de salvar</span>
+              </label>
+              <div id="settingsPreview" class="stg-preview" hidden>
+                <button type="button" class="icon-btn stg-copy" id="btnCopyPreview" aria-label="Copiar JSON">Copiar</button>
+                <pre id="settingsPreviewPre"></pre>
+              </div>
+
+              <!-- Footer -->
+              <div class="modal-footer">
+                <div class="footer-left">
+                  <button type="button" class="btn ghost" id="btnCancelSettings">Cancelar</button>
+                </div>
+                <div class="footer-right">
+                  <div class="mini-spinner" id="saveSpinner" hidden></div>
+                  <button type="submit" class="btn primary" id="btnSaveSettings">Salvar</button>
+                </div>
+              </div>
+
+              <small class="muted">Algumas mudanças pedem reinício (token/sessão).</small>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Modal -->
+  <div id="confirmModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal-header">
+        <h3 id="confirmTitle">Apagar sessão do WhatsApp?</h3>
+      </div>
+      <div class="modal-body">
+        <p>Isso remove o login salvo e volta a exibir o QR.</p>
+      </div>
+      <div class="modal-footer">
+        <div class="footer-left">
+          <button type="button" class="btn ghost" id="btnCancelConfirm">Cancelar</button>
+        </div>
+        <div class="footer-right">
+          <button type="button" class="btn danger" id="btnConfirmDelete">Apagar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+  <script>
+  // Sidebar âncora ativa com IntersectionObserver (escopo do modal)
+  (function(){
+    const root = document.getElementById('settingsBody');
+    const links = Array.from(document.querySelectorAll('#settingsModal .stg-nav a'));
+    const byId = Object.fromEntries(links.map(a => [a.getAttribute('href').slice(1), document.querySelector(a.getAttribute('href'))]).filter(([k,v])=>!!v));
+    const secs = Object.values(byId);
+    if(!root || !links.length) return;
+
+    const setActive = (id) => links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+
+    const io = new IntersectionObserver((entries)=>{
+      const first = entries.filter(e=>e.isIntersecting).sort((a,b)=> b.intersectionRatio - a.intersectionRatio)[0];
+      if(first?.target?.id) setActive(first.target.id);
+    }, { root, threshold: [0.4, 0.6] });
+
+    secs.forEach(s => io.observe(s));
+    links.forEach(a => a.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const t = byId[a.getAttribute('href').slice(1)];
+      if(t){ t.scrollIntoView({behavior:'smooth', block:'start'}); setActive(t.id); }
+    }));
+  })();
+  </script>
+</body>
+</html>

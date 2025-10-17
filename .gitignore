@@ -1,0 +1,42 @@
+node_modules/
+.env
+.bind.json
+.wwebjs_auth/
+.wwebjs_cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+pnpm-debug.log*
+
+# Build artifacts
+dist/
+dist-electron/
+build/
+out/
+release/
+
+# Test coverage and caches
+coverage/
+.nyc_output/
+.eslintcache
+.cache/
+.parcel-cache/
+
+# Package manager stores
+.pnpm-store/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+
+# Python caches/venvs (if present)
+__pycache__/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
