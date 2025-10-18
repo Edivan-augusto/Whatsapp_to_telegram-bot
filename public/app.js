@@ -24,6 +24,15 @@ function showToast(text, ok = true) {
   setTimeout(() => { t.hidden = true; }, 2200);
 }
 
+async function loadTemplateUI() {
+  try {
+    const el = $('#msgTemplate');
+    if (!el) return;
+    const r = await apiGet('/api/template');
+    el.value = (r && r.template) ? r.template : '';
+  } catch {}
+}
+
 let awaitingQR = false;
 async function refreshStatus() {
   try {
@@ -31,13 +40,25 @@ async function refreshStatus() {
     $('#waStatus').textContent = s.whatsappReady ? 'WhatsApp pronto' : 'Aguardando QR';
     $('#waStatus').classList.toggle('ok', !!s.whatsappReady);
 
+    // Se a modal de configurações estiver aberta, evite interferir nos controles da tela principal
+    const isSettingsOpen = document.getElementById('settingsModal')?.getAttribute('aria-hidden') === 'false';
     const spinner = $('#qrSpinner');
     const btnGen = $('#btnForceLogout');
     const waiting = !s.whatsappReady && !s.lastQRAvailable;
-    spinner.hidden = !waiting;
-    if (btnGen) btnGen.disabled = waiting;
-    const hint = $('#qrHint');
-    if (hint) hint.textContent = waiting ? 'Gerando QR...' : 'Clique em Gerar QR Code.';
+    if (!isSettingsOpen) {
+      spinner.hidden = !waiting;
+      const hint = $('#qrHint');
+      if (s.whatsappReady) {
+        if (btnGen) btnGen.style.display = 'none';
+        if (hint) {
+          hint.style.display = 'block';
+          hint.textContent = 'Você já está conectado, exclua sua sessão para gerar novamente';
+        }
+      } else {
+        if (btnGen) { btnGen.style.display = ''; btnGen.disabled = !!awaitingQR; }
+        if (hint) hint.textContent = waiting ? 'Gerando QR...' : 'Clique em Gerar QR Code.';
+      }
+    }
 
     if (!s.whatsappReady && s.lastQRAvailable) {
       try {
@@ -50,14 +71,14 @@ async function refreshStatus() {
         awaitingQR = false;
         if (btnGen) btnGen.disabled = false;
       } catch {}
-    } else {
+    } else if (!isSettingsOpen) {
       const img = $('#qrImg');
       img.removeAttribute('src');
       img.style.display = 'none';
       $('#qrHint').style.display = 'block';
       const waiting2 = !s.whatsappReady && !s.lastQRAvailable;
       spinner.hidden = !waiting2;
-      if (btnGen) btnGen.disabled = waiting2;
+      if (btnGen && !s.whatsappReady) btnGen.disabled = !!awaitingQR;
     }
   } catch (e) {
     console.error(e);
@@ -71,27 +92,32 @@ async function loadConfigToUI() {
       apiGet('/api/status').catch(() => ({}))
     ]);
     $('#ui_token').value = config.TELEGRAM_BOT_TOKEN || '';
-    $('#ui_chat_id').value = config.TELEGRAM_CHAT_ID || '';
-    $('#ui_wa_id').value = config.WAPP_GROUP_ID || '';
-    $('#ui_wa_name').value = config.WAPP_GROUP_NAME || '';
-    // select de sessão
-    const sel = $('#ui_session');
-    if (sel) {
-      const current = config.WAPP_SESSION || (status && status.session) || 'default';
-      const opts = ['default'];
-      if (current && !opts.includes(current)) opts.push(current);
-      sel.innerHTML = '';
-      for (const o of opts) {
-        const op = document.createElement('option');
-        op.value = o; op.textContent = o;
-        sel.appendChild(op);
-      }
-      sel.value = current;
-    }
-    $('#ui_port').value = config.UI_PORT || '43117';
+    // Chat de destino (nome do grupo)
+    const grp = $('#ui_grupo_nome');
+    if (grp) grp.value = config.WAPP_GROUP_NAME || '';
+    const chatId = $('#ui_tg_chat_id');
+    if (chatId) chatId.value = config.TELEGRAM_CHAT_ID || '';
     try {
       const c = await apiGet('/api/control');
-      $('#ui_send_offset').value = String(c.offsetMinutes ?? 0);
+      const offset = Number(c.offsetMinutes || 0);
+      const toggle = $('#enable_sending_toggle');
+      const input = $('#ui_controle_envio');
+      const group = $('#sendingControlGroup');
+      const LAST_KEY = 'send_offset_last';
+      if (toggle) toggle.checked = offset > 0;
+      // Preserve o último valor quando estiver desativado; atualize com o valor real quando ativo
+      if (input) {
+        if (offset > 0) {
+          input.value = String(offset);
+          try { localStorage.setItem(LAST_KEY, String(offset)); } catch {}
+        } else {
+          try {
+            const last = (localStorage.getItem(LAST_KEY) || '').trim();
+            if (last) input.value = last;
+          } catch {}
+        }
+      }
+      if (group) group.classList.toggle('is-disabled', offset <= 0);
     } catch {}
   } catch (e) {
     console.error(e);
@@ -100,59 +126,67 @@ async function loadConfigToUI() {
 
 function bindEvents() {
   const modal = $('#settingsModal');
-  const open = () => { modal.classList.add('show'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; };
-  const close = () => { modal.classList.remove('show'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; };
-  $('#btnSettings').addEventListener('click', async () => { await loadConfigToUI(); updatePreviewFromForm(); open(); });
-  $('#btnCloseSettings').addEventListener('click', close);
-  $('#btnCancelSettings').addEventListener('click', close);
-  modal.querySelector('.modal-backdrop').addEventListener('click', (e) => { if (e.target.dataset.close !== undefined) close(); });
+  const open = () => { modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; };
+  const close = () => { modal.classList.remove('is-open'); modal.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; };
+  // Renderizar ícones (Lucide) para engrenagem e olho
+  try {
+    const btnSettings = $('#btnSettings');
+    if (btnSettings) {
+      btnSettings.innerHTML = '<i data-lucide="settings" aria-hidden="true"></i>';
+    }
+    const tokenBtn = $('#tokenToggle');
+    if (tokenBtn) {
+      tokenBtn.innerHTML = '<i id="tokenIconShow" class="is-hidden" data-lucide="eye" aria-hidden="true"></i>' +
+                           '<i id="tokenIconHide" data-lucide="eye-off" aria-hidden="true"></i>';
+    }
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  } catch {}
+
+  $('#btnSettings').addEventListener('click', async () => { await loadConfigToUI(); open(); });
+  $('#btnClose').addEventListener('click', close);
+  $('#btnCancel').addEventListener('click', close);
+  const backdrop = modal.querySelector('.modal__backdrop');
+  if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target.dataset.close !== undefined) close(); });
   modal.addEventListener('keydown', (ev) => {
     if (modal.getAttribute('aria-hidden') === 'true') return;
-    if (ev.key === 'Escape') { ev.preventDefault(); $('#btnCancelSettings').click(); }
+    if (ev.key === 'Escape') { ev.preventDefault(); close(); }
     if (ev.key === 'Enter' && !ev.shiftKey) {
       const t = ev.target;
       if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'BUTTON' && t.type === 'button'))) return;
-      ev.preventDefault(); $('#btnSaveSettings').click();
+      ev.preventDefault(); $('#btnSave').click();
     }
   });
 
   $('#settingsForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     try {
-      const chat = $('#ui_chat_id').value.trim();
       const token = $('#ui_token').value.trim();
-      const errToken = $('#err_token');
-      if (chat && !token) {
-        if (errToken) errToken.hidden = false;
-        $('#ui_token').focus();
-        return;
-      } else { if (errToken) errToken.hidden = true; }
 
       const updates = {
         TELEGRAM_BOT_TOKEN: $('#ui_token').value.trim(),
-        TELEGRAM_CHAT_ID: $('#ui_chat_id').value.trim(),
-        WAPP_GROUP_ID: $('#ui_wa_id').value.trim(),
-        WAPP_GROUP_NAME: $('#ui_wa_name').value.trim(),
-        WAPP_SESSION: $('#ui_session').value.trim(),
-        UI_PORT: $('#ui_port').value.trim(),
+        WAPP_GROUP_NAME: $('#ui_grupo_nome').value.trim(),
+        TELEGRAM_CHAT_ID: ($('#ui_tg_chat_id').value || '').trim(),
       };
-      updatePreviewFromForm();
-      $('#saveSpinner').hidden = false;
-      $('#btnSaveSettings').disabled = true;
-      $('#btnCancelSettings').disabled = true;
+      $('#btnSave').disabled = true;
+      $('#btnCancel').disabled = true;
       const resp = await apiPost('/api/config', { updates });
-      let offsetMinutes = parseInt($('#ui_send_offset').value || '0', 10) || 0;
-      if (offsetMinutes < 0) offsetMinutes = 0; if (offsetMinutes > 60) offsetMinutes = 60;
+      const toggle = $('#enable_sending_toggle');
+      let offsetMinutes = 0;
+      if (toggle && toggle.checked) {
+        offsetMinutes = parseInt($('#ui_controle_envio').value || '5', 10) || 5;
+        if (offsetMinutes < 1) offsetMinutes = 1; if (offsetMinutes > 60) offsetMinutes = 60;
+      }
       await apiPost('/api/control', { offsetMinutes });
-      if (resp.ok) { showToast('Configurações salvas'); close(); }
+      if (resp.ok) { showToast('Configurações Salvas'); close(); }
       else { showToast('Falha ao salvar .env', false); }
     } catch (e) {
       console.error(e);
       showToast('Erro ao salvar .env', false);
     } finally {
-      $('#saveSpinner').hidden = true;
-      $('#btnSaveSettings').disabled = false;
-      $('#btnCancelSettings').disabled = false;
+      $('#btnSave').disabled = false;
+      $('#btnCancel').disabled = false;
     }
   });
 
@@ -170,69 +204,76 @@ function bindEvents() {
     }
   });
 
-  $('#btnToggleToken').addEventListener('click', () => {
+  // Toggle de visibilidade do token (novo layout)
+  const tokenToggleBtn = $('#tokenToggle');
+  const syncTokenIconState = () => {
     const el = $('#ui_token');
-    el.type = el.type === 'password' ? 'text' : 'password';
-    const on = document.querySelector('.eye.eye-on');
-    const off = document.querySelector('.eye.eye-off');
-    const showing = el.type === 'text';
-    if (on && off) { on.hidden = !showing; off.hidden = showing; }
-    const btn = $('#btnToggleToken');
-    if (btn) btn.setAttribute('aria-pressed', showing ? 'true' : 'false');
+    const showIco = $('#tokenIconShow'); // open eye
+    const hideIco = $('#tokenIconHide'); // closed eye
+    if (!el || !showIco || !hideIco) return;
+    const visible = el.type === 'text';
+    showIco.classList.toggle('is-hidden', !visible);
+    hideIco.classList.toggle('is-hidden', visible);
+    if (tokenToggleBtn) tokenToggleBtn.setAttribute('aria-label', visible ? 'Ocultar token' : 'Mostrar token');
+  };
+  if (tokenToggleBtn) tokenToggleBtn.addEventListener('click', () => {
+    const el = $('#ui_token');
+    if (!el) return;
+    el.type = (el.type === 'password') ? 'text' : 'password';
+    syncTokenIconState();
   });
+  // garantir estado inicial correto
+  syncTokenIconState();
 
-  const preview = $('#settingsPreview');
-  const previewPre = $('#settingsPreviewPre');
-  const previewSwitch = $('#previewSwitch');
-  function updatePreviewFromForm() {
-    const updates = {
-      TELEGRAM_BOT_TOKEN: $('#ui_token').value.trim(),
-      TELEGRAM_CHAT_ID: $('#ui_chat_id').value.trim(),
-      WAPP_GROUP_ID: $('#ui_wa_id').value.trim(),
-      WAPP_GROUP_NAME: $('#ui_wa_name').value.trim(),
-      WAPP_SESSION: $('#ui_session').value.trim(),
-      UI_PORT: $('#ui_port').value.trim()
+  // Sincronizar estado do controle de envio
+  const sendingToggle = $('#enable_sending_toggle');
+  const sendingGroup = $('#sendingControlGroup');
+  if (sendingToggle && sendingGroup) {
+    const syncSendingControlState = () => {
+      const isEnabled = sendingToggle.checked;
+      sendingGroup.classList.toggle('is-disabled', !isEnabled);
     };
-    let offsetMinutes = parseInt($('#ui_send_offset').value || '0', 10) || 0;
-    if (offsetMinutes < 0) offsetMinutes = 0; if (offsetMinutes > 60) offsetMinutes = 60;
-    const payload = { updates, offsetMinutes };
-    previewPre.textContent = JSON.stringify(payload, null, 2);
+    sendingToggle.addEventListener('change', syncSendingControlState);
+    syncSendingControlState();
   }
-  previewSwitch.addEventListener('change', () => {
-    preview.hidden = !previewSwitch.checked;
-    updatePreviewFromForm();
-  });
-  preview.hidden = !previewSwitch.checked;
-  ['ui_token','ui_chat_id','ui_wa_id','ui_wa_name','ui_session','ui_port','ui_send_offset'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updatePreviewFromForm);
-  });
-  const btnCopy = $('#btnCopyPreview');
-  if (btnCopy) btnCopy.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(previewPre.textContent || ''); showToast('Copiado'); }
-    catch { showToast('Falha ao copiar', false); }
-  });
 
-  // confirmação
-  const confirmModal = $('#confirmModal');
-  const openConfirm = () => { confirmModal.classList.add('show'); confirmModal.setAttribute('aria-hidden', 'false'); };
-  const closeConfirm = () => { confirmModal.classList.remove('show'); confirmModal.setAttribute('aria-hidden', 'true'); };
-  $('#btnClearWa').addEventListener('click', () => { openConfirm(); });
-  $('#btnCancelConfirm').addEventListener('click', () => { closeConfirm(); });
-  confirmModal.querySelector('.modal-backdrop').addEventListener('click', (e) => { if (e.target.dataset.close !== undefined) closeConfirm(); });
-  $('#btnConfirmDelete').addEventListener('click', async () => {
+  // Persistir o valor digitado do delay localmente para preservar entre aberturas
+  const delayInput = $('#ui_controle_envio');
+  if (delayInput) {
+    const LAST_KEY = 'send_offset_last';
+    delayInput.addEventListener('input', () => {
+      try { localStorage.setItem(LAST_KEY, String(delayInput.value || '')); } catch {}
+    });
+  }
+
+  // Apagar sessão via botão na zona de perigo
+  const btnClear = $('#btnClear');
+  if (btnClear) btnClear.addEventListener('click', async () => {
     try {
+      if (!confirm('Tem certeza que deseja apagar a sessão do WhatsApp? Esta ação não pode ser desfeita.')) return;
       await apiPost('/api/wa/clear_session', {});
-      showToast('Sessão apagada. Gerando novo QR...');
+      showToast('Sessao apagada', false);
       awaitingQR = true;
       $('#qrSpinner').hidden = false;
       $('#btnForceLogout').disabled = true;
-      closeConfirm();
-      $('#btnCancelSettings').click();
       setTimeout(refreshStatus, 800);
     } catch (e) {
       console.error(e);
       showToast('Erro ao apagar sessão', false);
+    }
+  });
+
+  // Salvar template
+  const btnSaveTpl = $('#btnSaveTemplate');
+  if (btnSaveTpl) btnSaveTpl.addEventListener('click', async () => {
+    try {
+      const el = $('#msgTemplate');
+      const text = el ? String(el.value || '') : '';
+      await apiPost('/api/template', { text });
+      showToast('Mensagem salva');
+    } catch (e) {
+      console.error(e);
+      showToast('Erro ao salvar mensagem', false);
     }
   });
 }
@@ -240,7 +281,11 @@ function bindEvents() {
 async function init() {
   bindEvents();
   await refreshStatus();
+  await loadTemplateUI();
   setInterval(refreshStatus, 4000);
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+
+
